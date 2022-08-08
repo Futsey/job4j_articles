@@ -17,6 +17,11 @@ import java.util.Properties;
 public class ArticleStore implements Store<Article>, AutoCloseable {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ArticleStore.class.getSimpleName());
+    private static final String CONNECT = "Создание подключения к БД статей";
+    private static final String UNABLE_TO_COMPLETE = "Не удалось выполнить операцию: { }";
+    private static final String INIT_TABLE = "Инициализация таблицы статей";
+    private static final String SAVE_INFO = "Сохранение статьи";
+    private static final String FIND_ALL = "Загрузка всех статей";
 
     private final Properties properties;
 
@@ -29,7 +34,7 @@ public class ArticleStore implements Store<Article>, AutoCloseable {
     }
 
     private void initConnection() {
-        LOGGER.info("Создание подключения к БД статей");
+        LOGGER.info(CONNECT);
         try {
             connection = DriverManager.getConnection(
                     properties.getProperty("url"),
@@ -37,35 +42,37 @@ public class ArticleStore implements Store<Article>, AutoCloseable {
                     properties.getProperty("password")
             );
         } catch (SQLException throwables) {
-            LOGGER.error("Не удалось выполнить операцию: { }", throwables.getCause());
+            LOGGER.error(UNABLE_TO_COMPLETE, throwables.getCause());
             throw new IllegalStateException();
         }
     }
 
     private void initScheme() {
-        LOGGER.info("Инициализация таблицы статей");
+        LOGGER.info(INIT_TABLE);
         try (var statement = connection.createStatement()) {
             var sql = Files.readString(Path.of("db/scripts", "articles.sql"));
             statement.execute(sql);
         } catch (Exception e) {
-            LOGGER.error("Не удалось выполнить операцию: { }", e.getCause());
+            LOGGER.error(UNABLE_TO_COMPLETE, e.getCause());
             throw new IllegalStateException();
         }
     }
 
     @Override
     public Article save(Article model) {
-        LOGGER.info("Сохранение статьи");
+        LOGGER.info(SAVE_INFO);
         var sql = "insert into articles(text) values(?)";
         try (var statement = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-            statement.setString(1, model.getText());
-            statement.executeUpdate();
-            var key = statement.getGeneratedKeys();
-            while (key.next()) {
-                model.setId(key.getInt(1));
+            if (model != null) {
+                statement.setString(1, model.getText());
+                statement.executeUpdate();
+                var key = statement.getGeneratedKeys();
+                while (key.next()) {
+                    model.setId(key.getInt(1));
+                }
             }
         } catch (Exception e) {
-            LOGGER.error("Не удалось выполнить операцию: { }", e.getCause());
+            LOGGER.error(UNABLE_TO_COMPLETE, e.getCause());
             throw new IllegalStateException();
         }
         return model;
@@ -73,7 +80,7 @@ public class ArticleStore implements Store<Article>, AutoCloseable {
 
     @Override
     public List<Article> findAll() {
-        LOGGER.info("Загрузка всех статей");
+        LOGGER.info(FIND_ALL);
         var sql = "select * from articles";
         var articles = new ArrayList<Article>();
         try (var statement = connection.prepareStatement(sql)) {
@@ -85,7 +92,7 @@ public class ArticleStore implements Store<Article>, AutoCloseable {
                 ));
             }
         } catch (Exception e) {
-            LOGGER.error("Не удалось выполнить операцию: { }", e.getCause());
+            LOGGER.error(UNABLE_TO_COMPLETE, e.getCause());
             throw new IllegalStateException();
         }
         return articles;
