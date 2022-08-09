@@ -30,6 +30,6 @@ public class SimpleArticleService implements ArticleService {
         IntStream.iterate(0, i -> i < count, i -> i + 1)
                 .peek(i -> LOGGER.info(RESULT_INFO, i))
                 .mapToObj(x -> articleGenerator.generate(words))
-                .map((r) -> new WeakReference<>(articleStore.save(r)));
+                .forEach(articleStore::save);
     }
 }
